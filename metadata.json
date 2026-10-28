@@ -1,0 +1,6 @@
+{
+  "name": "SubTrack — Quản lý gói đăng ký định kỳ",
+  "description": "Ứng dụng quản lý gói đăng ký định kỳ, theo dõi chi phí tuần/tháng/quý/năm, nhắc hạn thanh toán, quản lý tag và xuất báo cáo CSV.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

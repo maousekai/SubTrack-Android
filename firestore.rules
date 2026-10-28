@@ -1,0 +1,135 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1: Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Hardened Primitives
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Pillar 2 & 5: Validation Blueprint for Subscription (UC12 + UC15)
+    function isValidSubscription(data, userId) {
+      return data.keys().hasAll([
+        'ownerId',
+        'name',
+        'amount',
+        'currency',
+        'cycle',
+        'nextBillingDate',
+        'category',
+        'status',
+        'reminderDays',
+        'tagIds',
+        'platform',
+        'managementUrl',
+        'notes',
+        'updatedAtIso'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'name',
+        'amount',
+        'currency',
+        'cycle',
+        'nextBillingDate',
+        'category',
+        'status',
+        'reminderDays',
+        'tagIds',
+        'platform',
+        'managementUrl',
+        'notes',
+        'updatedAtIso'
+      ]) &&
+      data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+      data.ownerId == request.auth.uid && data.ownerId == userId &&
+      data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+      (data.amount is int || data.amount is float) && data.amount >= 0 &&
+      data.currency is string && data.currency.size() <= 10 &&
+      data.currency in ['VND', 'USD', 'EUR', 'JPY', 'GBP'] &&
+      data.cycle is string && data.cycle.size() <= 20 &&
+      data.cycle in ['weekly', 'monthly', 'quarterly', 'yearly'] &&
+      data.nextBillingDate is string && data.nextBillingDate.size() == 10 &&
+      data.nextBillingDate.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+      data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+      data.status is string && data.status.size() <= 20 &&
+      data.status in ['active', 'paused', 'cancelled'] &&
+      (data.reminderDays is int || data.reminderDays is float) &&
+      data.reminderDays in [-1, 0, 1, 3, 7, 30] &&
+      data.tagIds is list && data.tagIds.size() <= 10 &&
+      (data.tagIds.size() == 0 || (data.tagIds[0] is string && data.tagIds[0].size() <= 128)) &&
+      data.platform is string && data.platform.size() >= 1 && data.platform.size() <= 60 &&
+      data.managementUrl is string && data.managementUrl.size() <= 500 &&
+      data.notes is string && data.notes.size() <= 500 &&
+      data.updatedAtIso is string && data.updatedAtIso.size() >= 1 && data.updatedAtIso.size() <= 40;
+    }
+
+    // Validation Blueprint for Tag (UC07 + UC15)
+    function isValidTag(data, userId) {
+      return data.keys().hasAll(['ownerId', 'name', 'color']) &&
+      data.keys().hasOnly(['ownerId', 'name', 'color']) &&
+      data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+      data.ownerId == request.auth.uid && data.ownerId == userId &&
+      data.name is string && data.name.size() >= 1 && data.name.size() <= 30 &&
+      data.color is string && data.color.size() >= 4 && data.color.size() <= 20;
+    }
+
+    // User Subscriptions Subcollection
+    match /users/{userId}/subscriptions/{subscriptionId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(subscriptionId) && existing().ownerId == request.auth.uid;
+      allow list: if isOwner(userId) && existing().ownerId == request.auth.uid;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidId(subscriptionId) && isValidSubscription(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidId(subscriptionId) &&
+        isValidSubscription(incoming(), userId) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name',
+          'amount',
+          'currency',
+          'cycle',
+          'nextBillingDate',
+          'category',
+          'status',
+          'reminderDays',
+          'tagIds',
+          'platform',
+          'managementUrl',
+          'notes',
+          'updatedAtIso'
+        ]);
+      allow delete: if isOwner(userId) && isValidId(userId) && isValidId(subscriptionId) && existing().ownerId == request.auth.uid;
+    }
+
+    // User Tags Subcollection
+    match /users/{userId}/tags/{tagId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(tagId) && existing().ownerId == request.auth.uid;
+      allow list: if isOwner(userId) && existing().ownerId == request.auth.uid;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidId(tagId) && isValidTag(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidId(tagId) &&
+        isValidTag(incoming(), userId) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'color']);
+      allow delete: if isOwner(userId) && isValidId(userId) && isValidId(tagId) && existing().ownerId == request.auth.uid;
+    }
+  }
+}

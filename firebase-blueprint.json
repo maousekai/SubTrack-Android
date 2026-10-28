@@ -1,0 +1,141 @@
+{
+  "entities": {
+    "Subscription": {
+      "title": "Subscription",
+      "description": "Gói đăng ký định kỳ của người dùng trong SubTrack",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID của chủ sở hữu",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Tên dịch vụ đăng ký (bắt buộc, tối đa 60 ký tự theo UC12)",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "amount": {
+          "type": "number",
+          "description": "Số tiền mỗi kỳ thanh toán (không âm theo UC12)"
+        },
+        "currency": {
+          "type": "string",
+          "description": "Mã tiền tệ",
+          "enum": ["VND", "USD", "EUR", "JPY", "GBP"],
+          "maxLength": 10
+        },
+        "cycle": {
+          "type": "string",
+          "description": "Chu kỳ thanh toán",
+          "enum": ["weekly", "monthly", "quarterly", "yearly"],
+          "maxLength": 20
+        },
+        "nextBillingDate": {
+          "type": "string",
+          "description": "Ngày thanh toán tiếp theo định dạng YYYY-MM-DD",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "category": {
+          "type": "string",
+          "description": "Danh mục gói đăng ký",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "status": {
+          "type": "string",
+          "description": "Trạng thái gói (UC13)",
+          "enum": ["active", "paused", "cancelled"],
+          "maxLength": 20
+        },
+        "reminderDays": {
+          "type": "number",
+          "description": "Số ngày nhắc hạn trước (-1, 0, 1, 3, 7, 30)"
+        },
+        "tagIds": {
+          "type": "array",
+          "description": "Danh sách ID tag được gắn (tối đa 10 tag)"
+        },
+        "platform": {
+          "type": "string",
+          "description": "Nền tảng thanh toán",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "managementUrl": {
+          "type": "string",
+          "description": "Liên kết quản lý gói (rỗng hoặc bắt đầu bằng http/https)",
+          "maxLength": 500
+        },
+        "notes": {
+          "type": "string",
+          "description": "Ghi chú cá nhân",
+          "maxLength": 500
+        },
+        "updatedAtIso": {
+          "type": "string",
+          "description": "Chuỗi thời gian cập nhật gần nhất",
+          "maxLength": 40
+        }
+      },
+      "required": [
+        "ownerId",
+        "name",
+        "amount",
+        "currency",
+        "cycle",
+        "nextBillingDate",
+        "category",
+        "status",
+        "reminderDays",
+        "tagIds",
+        "platform",
+        "managementUrl",
+        "notes",
+        "updatedAtIso"
+      ]
+    },
+    "Tag": {
+      "title": "Tag",
+      "description": "Tag phân loại gói đăng ký có màu sắc (UC07)",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID của chủ sở hữu",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Tên tag",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "color": {
+          "type": "string",
+          "description": "Mã màu Hex",
+          "minLength": 4,
+          "maxLength": 20
+        }
+      },
+      "required": ["ownerId", "name", "color"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/subscriptions/{subscriptionId}": {
+      "schema": { "$ref": "#/entities/Subscription" },
+      "description": "Danh sách gói đăng ký định kỳ của từng người dùng (UC15 đồng bộ đám mây)"
+    },
+    "/users/{userId}/tags/{tagId}": {
+      "schema": { "$ref": "#/entities/Tag" },
+      "description": "Danh sách tag phân loại của từng người dùng (UC07 & UC15)"
+    }
+  }
+}
